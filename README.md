@@ -1,79 +1,50 @@
-# 🧠 LLM Pipeline for News Analysis with RAG + Validation
+# ESG Agent — LLM Agent with RAG + Tools
 
-## 🚀 Overview
+A lightweight, production-inspired ESG-focused AI agent that retrieves and reasons over sustainability reports using Retrieval-Augmented Generation (RAG) and tool usage.
 
-This project implements a lightweight yet production-inspired **LLM pipeline** to extract structured insights from unstructured news articles.
-
-It combines:
-
-* **Retrieval-Augmented Generation (RAG)** for contextual understanding
-* **LLM-based information extraction**
-* A **validation layer** to improve reliability and reduce hallucinations
-
-The system is designed to reflect real-world challenges when working with LLMs: ensuring **accuracy, consistency, and scalability** when processing large volumes of text.
-
----
-
-## 🎯 Motivation
-
-Modern NLP systems powered by LLMs are powerful but imperfect.
-They can:
-
-* Hallucinate
-* Miss context
-* Produce inconsistent outputs
-
-This project explores a simple but effective approach to mitigate these issues by:
-
-1. Grounding responses using **retrieval (RAG)**
-2. Enforcing **structured outputs**
-3. Adding a **validation step** to filter unreliable predictions
-
----
-
-## 🧱 Architecture
+## Architecture
 
 ```
-Raw Articles
-     ↓
-Text Chunking
-     ↓
-Embeddings (Vectorization)
-     ↓
-Vector Database (FAISS)
-     ↓
-Retriever (RAG)
-     ↓
-LLM Extractor (Structured Output)
-     ↓
-Validation Layer (Rule-based / LLM-based)
-     ↓
-Final JSON Output
+esg_agent/
+├── config.py          # Settings, ModelType, ESGCategory enums
+├── models.py          # Pydantic data models (ESGEvent, ESGExtractionResult, …)
+├── tools.py           # LangChain tools: think_and_write, web_search, calculator, lookup_esg_database
+├── rag/
+│   └── retriever.py   # In-memory FAISS RAG retriever
+├── prompts/
+│   └── extraction_prompt.py  # System prompts for extraction and validation
+├── extraction.py      # LLM-based ESG event extractor (RAG → LLM → parse)
+├── validation.py      # Validation layer (groundedness check)
+├── agent.py           # create_esg_agent() factory
+├── orchestrator.py    # Top-level pipeline: extract → validate
+└── _db.py             # Lightweight in-process session store
 ```
 
----
+## Pipeline
 
-## ⚙️ Features
+```
+Documents → RAG Retriever → Context
+                          ↓
+              LLM Extractor (+ tools)
+                          ↓
+              ESGExtractionResult (validated=False)
+                          ↓
+              LLM Validator (groundedness)
+                          ↓
+              ESGExtractionResult (validated=True/False per event)
+```
 
-* 🔍 **RAG Pipeline**
-  Retrieves relevant context to improve LLM reasoning
+## Features
 
-* 🤖 **Structured Information Extraction**
-  Extracts key fields such as:
+| Feature | Description |
+|---|---|
+| **RAG Pipeline** | FAISS-backed in-memory vector store; chunks documents and retrieves top-k passages |
+| **Structured Extraction** | Pydantic-typed `ESGEvent` with company, event, category, confidence, source_excerpt |
+| **Tools** | `think_and_write`, `web_search` (Tavily), `calculator`, `lookup_esg_database` |
+| **Validation Layer** | LLM cross-checks every event against its cited excerpt; sets `validated` flag |
+| **Modular Design** | Each component (retriever, extractor, validator, agent) can be used independently |
 
-  * Company
-  * Event
-  * Category
-
-* 🧪 **Validation Layer**
-  Ensures extracted outputs are consistent and grounded in the source text
-
-* 📦 **Scalable Design**
-  Modular components that can be extended into production systems
-
----
-
-## 🧾 Example Output
+## Example Output
 
 ```json
 {
@@ -81,74 +52,43 @@ Final JSON Output
   "event": "announced new manufacturing facility",
   "category": "Expansion",
   "confidence": 0.91,
+  "source_excerpt": "Tesla announced a new manufacturing facility in Texas.",
   "validated": true
 }
 ```
 
----
+## Quick Start
 
-## 🛠️ Tech Stack
+```python
+import asyncio
+from esg_agent.orchestrator import orchestrate_esg_analysis
 
-* **Python**
-* **LLMs** (via API)
-* **Embeddings** (OpenAI / Sentence Transformers)
-* **FAISS** (vector similarity search)
-* **NumPy / Pandas** (data handling)
+result = asyncio.run(
+    orchestrate_esg_analysis(
+        company="Tesla",
+        query="carbon emissions and expansion plans",
+        documents=["<full text of Tesla sustainability report>"],
+        top_k=5,
+    )
+)
 
----
-
-## 📂 Project Structure
-
-```
-llm-news-rag/
-│
-├── data/                # Input articles
-├── src/
-│   ├── ingest.py        # Load and preprocess documents
-│   ├── embeddings.py    # Generate embeddings
-│   ├── retriever.py     # RAG retrieval logic
-│   ├── extractor.py     # LLM-based extraction
-│   ├── validator.py     # Output validation
-│   └── pipeline.py      # End-to-end pipeline
-│
-├── outputs/             # Final results
-├── README.md
-├── requirements.txt
+for event in result.events:
+    print(event.model_dump_json(indent=2))
 ```
 
----
+## Environment Variables
 
-## ▶️ How to Run
+| Variable | Default | Description |
+|---|---|---|
+| `OPENAI_API_KEY` | — | Required for OpenAI models |
+| `GOOGLE_API_KEY` | — | Required for Gemini models |
+| `ESG_DEFAULT_MODEL` | `gpt-4o-mini` | LLM to use |
+| `ESG_MAX_WEB_SEARCHES` | `3` | Cap on `web_search` calls per run |
+| `ESG_RAG_TOP_K` | `5` | Number of RAG chunks retrieved per query |
+| `TAVILY_API_KEY` | — | Required for `web_search` tool |
+
+## Running Tests
 
 ```bash
-pip install -r requirements.txt
-python src/pipeline.py
+uv run pytest
 ```
-
----
-
-## 🧪 Validation Strategy
-
-This project includes a validation layer to improve reliability:
-
-### Rule-based checks:
-
-* Ensures extracted entities appear in the original text
-* Filters incomplete or inconsistent outputs
-
-### LLM-based validation (optional):
-
-* Secondary LLM call verifies extraction correctness
-* Outputs a boolean validation flag
-
----
-
-## 🤝 Acknowledgment
-
-This project is inspired by real-world experience building LLM systems for large-scale document processing, adapted into a simplified and public-safe implementation.
-
----
-
-## 📬 Contact
-
-If you’d like to discuss this project or collaborate, feel free to reach out.
