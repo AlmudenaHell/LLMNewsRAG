@@ -65,7 +65,7 @@ Final JSON Output
   * Event
   * Category
 
-* 🧪 **Validation Layer (Key Differentiator)**
+* 🧪 **Validation Layer**
   Ensures extracted outputs are consistent and grounded in the source text
 
 * 📦 **Scalable Design**
@@ -140,42 +140,6 @@ This project includes a validation layer to improve reliability:
 
 * Secondary LLM call verifies extraction correctness
 * Outputs a boolean validation flag
-
-This mimics real-world systems where **post-processing is critical** for trustworthiness.
-
----
-
-## 📊 Evaluation (Optional Extension)
-
-Basic evaluation can include:
-
-* % of validated outputs
-* Manual spot-checking
-* Precision of extracted fields
-
----
-
-## 🔮 Future Improvements
-
-* Add **agent-based workflows** (tool usage, reasoning loops)
-* Improve **evaluation framework** (benchmarks, test sets)
-* Introduce **streaming / real-time ingestion**
-* Deploy as an **API service**
-* Add **UI for visualization and inspection**
-
----
-
-## 💡 Key Takeaways
-
-This project demonstrates how to move from:
-
-> “Using LLMs” → “Designing reliable LLM systems”
-
-Key ideas:
-
-* Retrieval improves grounding
-* Structure improves usability
-* Validation improves trust
 
 ---
 
